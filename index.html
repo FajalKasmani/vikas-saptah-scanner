@@ -10,137 +10,142 @@
     content="width=device-width, initial-scale=1.0"
   >
 
+  <meta
+    name="theme-color"
+    content="#111827"
+  >
+
   <title>Vikas Saptah '26 - Scanner</title>
 
   <link
     rel="stylesheet"
-    href="style.css"
+    href="./style.css"
   >
-
-  <!-- QR SCANNER -->
-  <script
-    src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js">
-  </script>
 
 </head>
 
 
 <body>
 
+  <div class="app">
 
-<div class="app">
+    <!-- HEADER -->
 
+    <header class="header">
 
-  <!-- HEADER -->
+      <h1>
+        Vikas Saptah '26
+      </h1>
 
-  <header class="header">
+      <p>
+        Volunteer Check-in Scanner
+      </p>
 
-    <div class="event-name">
-      VIKAS SAPTAH '26
-    </div>
-
-    <div class="desk-name">
-      Volunteer Check-in Desk
-    </div>
-
-  </header>
+    </header>
 
 
-  <!-- SCANNER -->
+    <!-- SCANNER CARD -->
 
-  <section class="card">
+    <section class="card">
 
-    <h2>
-      📷 Scan Registration QR
-    </h2>
+      <h2>
+        📷 Scan Registration QR
+      </h2>
 
-    <p class="subtext">
-      Scan attendee's registration QR code
-    </p>
-
-
-    <div
-      id="reader"
-      class="reader"
-    ></div>
+      <p class="muted">
+        Point the camera at the attendee's QR code.
+      </p>
 
 
-    <div
-      id="scannerStatus"
-      class="scanner-status"
+      <div
+        id="reader"
+        class="reader"
+      ></div>
+
+
+      <div
+        id="scannerStatus"
+        class="scanner-status"
+      >
+        Scanner ready
+      </div>
+
+
+      <button
+        id="startScannerBtn"
+        class="btn btn-dark"
+      >
+        📷 START QR SCANNER
+      </button>
+
+
+      <button
+        id="stopScannerBtn"
+        class="btn btn-danger hidden"
+      >
+        🛑 STOP SCANNER
+      </button>
+
+
+      <div
+        id="cameraMessage"
+        class="message-area"
+      ></div>
+
+    </section>
+
+
+    <!-- MANUAL SEARCH -->
+
+    <section class="card">
+
+      <h2>
+        🔎 Find Registration
+      </h2>
+
+      <input
+        id="registrationId"
+        type="text"
+        placeholder="VS26-0001"
+        autocomplete="off"
+        autocapitalize="characters"
+      >
+
+
+      <button
+        id="findBtn"
+        class="btn btn-primary"
+      >
+        FIND REGISTRATION
+      </button>
+
+    </section>
+
+
+    <!-- RESULT -->
+
+    <section
+      id="resultCard"
+      class="card hidden"
     >
-      Scanner ready
-    </div>
+
+      <div id="result"></div>
+
+    </section>
+
+  </div>
 
 
-    <button
-      id="startScannerBtn"
-      class="btn btn-dark"
-      onclick="startScanner()"
-    >
-      📷 START QR SCANNER
-    </button>
+  <!-- QR LIBRARY -->
+
+  <script
+    src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
+  ></script>
 
 
-    <button
-      id="stopScannerBtn"
-      class="btn btn-danger hidden"
-      onclick="stopScanner()"
-    >
-      🛑 STOP SCANNER
-    </button>
+  <!-- OUR APP -->
 
-
-  </section>
-
-
-  <!-- MANUAL SEARCH -->
-
-  <section class="card">
-
-    <h3>
-      Manual Registration ID
-    </h3>
-
-    <input
-      id="registrationId"
-      type="text"
-      placeholder="Example: VS26-0001"
-      autocomplete="off"
-    >
-
-
-    <button
-      class="btn btn-primary"
-      onclick="findAttendee()"
-    >
-      🔎 FIND REGISTRATION
-    </button>
-
-
-    <p class="divider">
-      OR SCAN QR ABOVE
-    </p>
-
-  </section>
-
-
-  <!-- RESULT -->
-
-  <section
-    id="resultCard"
-    class="card hidden"
-  >
-
-    <div id="result"></div>
-
-  </section>
-
-
-</div>
-
-
-<script src="app.js"></script>
+  <script src="./app.js"></script>
 
 </body>
 
