@@ -2,7 +2,7 @@
  * VIKAS SAPTAH '26
  * VERCEL QR SCANNER
  ************************************************/
-
+console.log("VIKAS SAPTAH APP.JS LOADED");
 
 /*
  * ==============================================
