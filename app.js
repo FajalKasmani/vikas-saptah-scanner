@@ -3,211 +3,89 @@
  * QR SCANNER + GOOGLE SHEET BACKEND
  ************************************************/
 
-
-/*
- * ==============================================
- * IMPORTANT
- * ==============================================
- *
- * Paste your Google Apps Script Web App URL here.
- *
- * Example:
- *
- * https://script.google.com/macros/s/XXXXXXXX/exec
- *
- */
-
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxdUeD5zO2t8VWnY7npyq-EdJMXNbe-_0n4ruOlmyh5nn2Q7oNa9MCah-_EWDylGx2HjQ/exec";
 
-
-/*
- * ==============================================
- * GLOBAL VARIABLES
- * ==============================================
- */
-
 let qrScanner = null;
-
 let scannerRunning = false;
 
 let lastScannedId = "";
-
 let lastScanTime = 0;
 
 
-/*
- * ==============================================
- * PAGE LOAD
- * ==============================================
- */
+/* ==============================================
+   PAGE LOAD
+============================================== */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  function () {
+document.addEventListener("DOMContentLoaded", function () {
 
-    console.log(
-      "VIKAS SAPTAH APP.JS LOADED"
-    );
+  console.log("VIKAS SAPTAH SCANNER LOADED");
 
+  document
+    .getElementById("startScannerBtn")
+    .addEventListener("click", startScanner);
 
-    /*
-     * Button listeners
-     */
+  document
+    .getElementById("stopScannerBtn")
+    .addEventListener("click", stopScanner);
 
-    document
-      .getElementById(
-        "startScannerBtn"
-      )
-      .addEventListener(
-        "click",
-        startScanner
-      );
+  document
+    .getElementById("findBtn")
+    .addEventListener("click", findAttendee);
 
+  document
+    .getElementById("registrationId")
+    .addEventListener("keydown", function (event) {
 
-    document
-      .getElementById(
-        "stopScannerBtn"
-      )
-      .addEventListener(
-        "click",
-        stopScanner
-      );
+      if (event.key === "Enter") {
+        findAttendee();
+      }
+
+    });
+
+});
 
 
-    document
-      .getElementById(
-        "findBtn"
-      )
-      .addEventListener(
-        "click",
-        findAttendee
-      );
-
-
-    /*
-     * Enter key
-     */
-
-    document
-      .getElementById(
-        "registrationId"
-      )
-      .addEventListener(
-        "keydown",
-        function (event) {
-
-          if (
-            event.key === "Enter"
-          ) {
-
-            findAttendee();
-
-          }
-
-        }
-      );
-
-
-    /*
-     * Check API URL
-     */
-
-    if (
-      API_URL.includes(
-        "PASTE_YOUR"
-      )
-    ) {
-
-      showCameraMessage(
-        "⚠️ Apps Script API URL is not configured yet.",
-        "warning"
-      );
-
-    }
-
-  }
-);
-
-
-/*
- * ==============================================
- * START QR SCANNER
- * ==============================================
- */
+/* ==============================================
+   START SCANNER
+============================================== */
 
 async function startScanner() {
 
-
-  console.log(
-    "START SCANNER CLICKED"
-  );
-
-
   const status =
-    document.getElementById(
-      "scannerStatus"
-    );
+    document.getElementById("scannerStatus");
 
-
-  if (
-    typeof Html5Qrcode ===
-    "undefined"
-  ) {
+  if (typeof Html5Qrcode === "undefined") {
 
     showCameraMessage(
-
-      "❌ QR scanner library could not load. Please refresh the page.",
-
+      "QR scanner library could not load. Please refresh.",
       "error"
-
     );
 
     return;
-
   }
 
-
-  if (
-    scannerRunning
-  ) {
-
+  if (scannerRunning) {
     return;
-
   }
-
 
   status.innerText =
     "Requesting camera permission...";
 
-
   try {
-
-
-    /*
-     * Create scanner
-     */
 
     if (!qrScanner) {
 
       qrScanner =
-        new Html5Qrcode(
-          "reader"
-        );
+        new Html5Qrcode("reader");
 
     }
-
-
-    /*
-     * Try back camera
-     */
 
     await qrScanner.start(
 
       {
         facingMode: "environment"
       },
-
 
       {
         fps: 10,
@@ -218,109 +96,57 @@ async function startScanner() {
         },
 
         aspectRatio: 1.0
-
       },
 
-
       onScanSuccess,
-
       onScanFailure
 
     );
 
-
     scannerStarted();
-
 
   }
 
-
   catch (error) {
 
-
-    console.log(
-      "Primary camera error:",
-      error
-    );
-
-
-    /*
-     * Fallback:
-     * find available cameras
-     */
+    console.log("Primary camera error:", error);
 
     try {
 
-
       const cameras =
-        await Html5Qrcode
-          .getCameras();
+        await Html5Qrcode.getCameras();
 
+      if (!cameras || cameras.length === 0) {
 
-      if (
-        !cameras ||
-        cameras.length === 0
-      ) {
-
-        throw new Error(
-          "No camera found."
-        );
+        throw new Error("No camera found.");
 
       }
 
-
-      /*
-       * Prefer rear camera
-       */
-
       let selectedCamera =
-        cameras.find(
-          function (camera) {
+        cameras.find(function (camera) {
 
-            const label =
-              String(
-                camera.label || ""
-              ).toLowerCase();
+          const label =
+            String(camera.label || "")
+              .toLowerCase();
 
+          return (
+            label.includes("back") ||
+            label.includes("rear") ||
+            label.includes("environment")
+          );
 
-            return (
+        });
 
-              label.includes(
-                "back"
-              ) ||
-
-              label.includes(
-                "rear"
-              ) ||
-
-              label.includes(
-                "environment"
-              )
-
-            );
-
-          }
-        );
-
-
-      /*
-       * Otherwise first camera
-       */
-
-      if (
-        !selectedCamera
-      ) {
+      if (!selectedCamera) {
 
         selectedCamera =
           cameras[0];
 
       }
 
-
       await qrScanner.start(
 
         selectedCamera.id,
-
 
         {
           fps: 10,
@@ -331,44 +157,31 @@ async function startScanner() {
           },
 
           aspectRatio: 1.0
-
         },
 
-
         onScanSuccess,
-
         onScanFailure
 
       );
 
-
       scannerStarted();
-
 
     }
 
-
     catch (finalError) {
-
 
       console.error(
         "Camera failed:",
         finalError
       );
 
-
       status.innerText =
-        "❌ Camera could not start";
-
+        "Camera could not start";
 
       showCameraMessage(
-
-        "❌ Camera could not start.<br><br>" +
-
-        "Please check browser camera permission and make sure you opened this site using HTTPS.",
-
+        "Camera could not start.<br><br>" +
+        "Please allow camera permission and use HTTPS.",
         "error"
-
       );
 
     }
@@ -378,219 +191,118 @@ async function startScanner() {
 }
 
 
-/*
- * ==============================================
- * SCANNER STARTED
- * ==============================================
- */
+/* ==============================================
+   SCANNER STARTED
+============================================== */
 
 function scannerStarted() {
 
-
-  scannerRunning =
-    true;
-
+  scannerRunning = true;
 
   document
-    .getElementById(
-      "startScannerBtn"
-    )
+    .getElementById("startScannerBtn")
     .classList
-    .add(
-      "hidden"
-    );
-
+    .add("hidden");
 
   document
-    .getElementById(
-      "stopScannerBtn"
-    )
+    .getElementById("stopScannerBtn")
     .classList
-    .remove(
-      "hidden"
-    );
-
+    .remove("hidden");
 
   document
-    .getElementById(
-      "scannerStatus"
-    )
+    .getElementById("scannerStatus")
     .innerText =
-    "📷 Camera active — point at QR";
-
+    "Camera active - point at QR";
 
   clearCameraMessage();
 
 }
 
 
-/*
- * ==============================================
- * QR SUCCESS
- * ==============================================
- */
+/* ==============================================
+   QR SUCCESS
+============================================== */
 
-async function onScanSuccess(
-  decodedText
-) {
-
+async function onScanSuccess(decodedText) {
 
   console.log(
     "QR SCANNED:",
     decodedText
   );
 
-
-  const now =
-    Date.now();
-
-
-  /*
-   * Prevent duplicate scan
-   */
+  const now = Date.now();
 
   if (
-
-    decodedText ===
-    lastScannedId &&
-
-    now - lastScanTime <
-    3000
-
+    decodedText === lastScannedId &&
+    now - lastScanTime < 3000
   ) {
 
     return;
 
   }
 
-
-  lastScannedId =
-    decodedText;
-
-
-  lastScanTime =
-    now;
-
-
-  /*
-   * Normalize QR text
-   */
+  lastScannedId = decodedText;
+  lastScanTime = now;
 
   let registrationId =
-    String(
-      decodedText
-    )
-    .trim()
-    .toUpperCase();
-
-
-  /*
-   * Extract VS26-0001
-   */
+    String(decodedText)
+      .trim()
+      .toUpperCase();
 
   const match =
-    registrationId.match(
-      /VS26-\d+/i
-    );
+    registrationId.match(/VS26-\d+/i);
 
-
-  if (
-    match
-  ) {
+  if (match) {
 
     registrationId =
-      match[0]
-        .toUpperCase();
+      match[0].toUpperCase();
 
   }
 
-
-  /*
-   * Fill input
-   */
-
   document
-    .getElementById(
-      "registrationId"
-    )
+    .getElementById("registrationId")
     .value =
     registrationId;
 
-
-  /*
-   * Stop camera
-   */
-
   await stopScanner();
 
-
   document
-    .getElementById(
-      "scannerStatus"
-    )
+    .getElementById("scannerStatus")
     .innerText =
-    "✅ QR scanned: " +
+    "QR scanned: " +
     registrationId;
-
-
-  /*
-   * Find attendee
-   */
 
   findAttendee();
 
 }
 
 
-/*
- * ==============================================
- * QR FAILURE
- * ==============================================
- */
+/* ==============================================
+   QR FAILURE
+============================================== */
 
-function onScanFailure(
-  error
-) {
-
-  /*
-   * Don't display anything.
-   *
-   * This function is called repeatedly
-   * while searching for a QR.
-   */
-
+function onScanFailure(error) {
+  // Ignore continuous scan failures.
 }
 
 
-/*
- * ==============================================
- * STOP SCANNER
- * ==============================================
- */
+/* ==============================================
+   STOP SCANNER
+============================================== */
 
 async function stopScanner() {
 
-
-  if (
-    !qrScanner
-  ) {
-
+  if (!qrScanner) {
     return;
-
   }
-
 
   try {
 
-
-    if (
-      scannerRunning
-    ) {
+    if (scannerRunning) {
 
       await qrScanner.stop();
 
     }
-
 
   }
 
@@ -603,71 +315,43 @@ async function stopScanner() {
 
   }
 
-
-  scannerRunning =
-    false;
-
+  scannerRunning = false;
 
   document
-    .getElementById(
-      "startScannerBtn"
-    )
+    .getElementById("startScannerBtn")
     .classList
-    .remove(
-      "hidden"
-    );
-
+    .remove("hidden");
 
   document
-    .getElementById(
-      "stopScannerBtn"
-    )
+    .getElementById("stopScannerBtn")
     .classList
-    .add(
-      "hidden"
-    );
-
+    .add("hidden");
 
   document
-    .getElementById(
-      "scannerStatus"
-    )
+    .getElementById("scannerStatus")
     .innerText =
     "Scanner stopped";
 
 }
 
 
-/*
- * ==============================================
- * FIND ATTENDEE
- * ==============================================
- */
+/* ==============================================
+   FIND ATTENDEE
+============================================== */
 
 function findAttendee() {
-
-
-  console.log(
-    "FIND BUTTON CLICKED"
-  );
-
 
   const input =
     document.getElementById(
       "registrationId"
     );
 
-
   const id =
-    input
-      .value
+    input.value
       .trim()
       .toUpperCase();
 
-
-  if (
-    !id
-  ) {
+  if (!id) {
 
     showError(
       "Please scan a QR code or enter Registration ID."
@@ -677,16 +361,7 @@ function findAttendee() {
 
   }
 
-
-  /*
-   * Validate ID
-   */
-
-  if (
-    !/^VS26-\d+$/i.test(
-      id
-    )
-  ) {
+  if (!/^VS26-\d+$/i.test(id)) {
 
     showError(
       "Invalid Registration ID. Example: VS26-0001"
@@ -696,9 +371,7 @@ function findAttendee() {
 
   }
 
-
   showLoading();
-
 
   apiCall(
 
@@ -708,40 +381,55 @@ function findAttendee() {
       id: id
     },
 
-
     function (response) {
-
 
       console.log(
         "FIND RESPONSE:",
         response
       );
 
-
-      if (
-        !response ||
-        !response.success
-      ) {
+      if (!response) {
 
         showError(
-
-          response &&
-          response.message
-
-            ? response.message
-
-            : "Registration not found."
-
+          "No response from server."
         );
 
         return;
 
       }
 
+      if (!response.success) {
 
-      renderAttendee(
-        response.data
-      );
+        showError(
+          response.message ||
+          "Registration not found."
+        );
+
+        return;
+
+      }
+
+      /*
+       * IMPORTANT:
+       * Backend may return attendee data
+       * directly OR inside response.data.
+       */
+
+      const attendee =
+        response.data ||
+        response;
+
+      if (!attendee.registrationId) {
+
+        showError(
+          "Registration found but attendee data is invalid."
+        );
+
+        return;
+
+      }
+
+      renderAttendee(attendee);
 
     }
 
@@ -750,128 +438,70 @@ function findAttendee() {
 }
 
 
-/*
- * ==============================================
- * CHECK IN
- * ==============================================
- */
+/* ==============================================
+   CHECK IN
+============================================== */
 
-function checkIn(
-  id
-) {
-
-
-  const input =
-    document.getElementById(
-      "certificateName"
-    );
-
-
-  const certificateName =
-    input
-      ? input.value.trim()
-      : "";
-
-
-  if (
-    !certificateName
-  ) {
-
-    showError(
-      "Certificate Name is required."
-    );
-
-    return;
-
-  }
-
+function checkIn(id) {
 
   showLoading();
-
 
   apiCall(
 
     "checkin",
 
     {
-
-      id:
-        id,
-
-      certificateName:
-        certificateName
-
+      id: id
     },
 
-
     function (response) {
-
 
       console.log(
         "CHECK-IN RESPONSE:",
         response
       );
 
-
-      if (
-        !response ||
-        !response.success
-      ) {
-
-
-        /*
-         * Duplicate check-in
-         */
+      if (!response || !response.success) {
 
         if (
           response &&
           response.alreadyCheckedIn
         ) {
 
+          const attendee =
+            response.data ||
+            response;
 
-          renderAttendee(
-            response.data
-          );
-
+          renderAttendee(attendee);
 
           showWarning(
-
-            "⚠️ Already Checked In at " +
-
-            response.data.checkInTime
-
+            "Already Checked In at " +
+            (attendee.checkInTime || "-")
           );
-
 
           return;
 
         }
 
-
         showError(
-
           response &&
           response.message
-
             ? response.message
-
             : "Check-in failed."
-
         );
-
 
         return;
 
       }
 
+      const attendee =
+        response.data ||
+        response;
 
-      renderAttendee(
-        response.data
-      );
-
+      renderAttendee(attendee);
 
       showSuccess(
-        "✅ Check-in completed successfully."
+        "Check-in completed successfully."
       );
 
     }
@@ -881,19 +511,13 @@ function checkIn(
 }
 
 
-/*
- * ==============================================
- * GOODIE
- * ==============================================
- */
+/* ==============================================
+   GOODIE
+============================================== */
 
-function collectGoodie(
-  id
-) {
-
+function collectGoodie(id) {
 
   showLoading();
-
 
   apiCall(
 
@@ -903,75 +527,54 @@ function collectGoodie(
       id: id
     },
 
-
     function (response) {
-
 
       console.log(
         "GOODIE RESPONSE:",
         response
       );
 
-
-      if (
-        !response ||
-        !response.success
-      ) {
-
-
-        /*
-         * Duplicate goodie
-         */
+      if (!response || !response.success) {
 
         if (
           response &&
           response.alreadyCollected
         ) {
 
+          const attendee =
+            response.data ||
+            response;
 
-          renderAttendee(
-            response.data
-          );
-
+          renderAttendee(attendee);
 
           showWarning(
-
-            "⚠️ Goodie already collected at " +
-
-            response.data.goodieTime
-
+            "Goodie already collected at " +
+            (attendee.goodieTime || "-")
           );
-
 
           return;
 
         }
 
-
         showError(
-
           response &&
           response.message
-
             ? response.message
-
             : "Goodie collection failed."
-
         );
-
 
         return;
 
       }
 
+      const attendee =
+        response.data ||
+        response;
 
-      renderAttendee(
-        response.data
-      );
-
+      renderAttendee(attendee);
 
       showSuccess(
-        "🎁 Goodie collected successfully."
+        "Goodie collected successfully."
       );
 
     }
@@ -981,15 +584,9 @@ function collectGoodie(
 }
 
 
-/*
- * ==============================================
- * API CALL
- * ==============================================
- *
- * Uses JSONP so the browser does not block
- * the Apps Script request because of CORS.
- *
- */
+/* ==============================================
+   API CALL
+============================================== */
 
 function apiCall(
   action,
@@ -997,26 +594,18 @@ function apiCall(
   callback
 ) {
 
-
-  /*
-   * Check URL
-   */
-
   if (
     !API_URL ||
-    API_URL.includes(
-      "PASTE_YOUR"
-    )
+    API_URL.includes("PASTE_YOUR")
   ) {
 
     showError(
-      "Apps Script API URL is not configured in app.js."
+      "Apps Script API URL is not configured."
     );
 
     return;
 
   }
-
 
   const callbackName =
     "vs26Callback_" +
@@ -1026,51 +615,32 @@ function apiCall(
       Math.random() * 100000
     );
 
-
   const script =
-    document.createElement(
-      "script"
-    );
-
-
-  /*
-   * Global callback
-   */
+    document.createElement("script");
 
   window[callbackName] =
     function (response) {
-
 
       console.log(
         "API RESPONSE:",
         response
       );
 
-
       try {
 
-        callback(
-          response
-        );
+        callback(response);
 
       }
 
       finally {
 
+        delete window[callbackName];
 
-        delete window[
-          callbackName
-        ];
+        if (script.parentNode) {
 
-
-        if (
-          script.parentNode
-        ) {
-
-          script.parentNode
-            .removeChild(
-              script
-            );
+          script.parentNode.removeChild(
+            script
+          );
 
         }
 
@@ -1078,76 +648,61 @@ function apiCall(
 
     };
 
-
-  /*
-   * Build URL
-   */
-
   const query =
     new URLSearchParams();
 
+  /*
+   * Apps Script API
+   */
 
   query.append(
     "api",
     action
   );
 
-
   query.append(
     "callback",
     callbackName
   );
 
-
-  Object.keys(
-    params || {}
-  ).forEach(
-    function (key) {
+  Object.keys(params || {})
+    .forEach(function (key) {
 
       query.append(
         key,
         params[key]
       );
 
-    }
-  );
+    });
 
-
-  script.src =
+  const finalUrl =
     API_URL +
     "?" +
     query.toString();
 
+  console.log(
+    "API REQUEST:",
+    finalUrl
+  );
 
-  /*
-   * Error
-   */
+  script.src = finalUrl;
 
   script.onerror =
     function () {
-
 
       console.error(
         "API request failed"
       );
 
+      delete window[callbackName];
 
-      delete window[
-        callbackName
-      ];
+      if (script.parentNode) {
 
-
-      if (
-        script.parentNode
-      ) {
-
-        script.parentNode
-          .removeChild(
-            script
-          );
+        script.parentNode.removeChild(
+          script
+        );
 
       }
-
 
       showError(
         "Unable to connect to Google Apps Script."
@@ -1155,133 +710,77 @@ function apiCall(
 
     };
 
-
-  document
-    .body
-    .appendChild(
-      script
-    );
+  document.body.appendChild(script);
 
 }
 
 
-/*
- * ==============================================
- * RENDER ATTENDEE
- * ==============================================
- */
+/* ==============================================
+   RENDER ATTENDEE
+============================================== */
 
-function renderAttendee(
-  data
-) {
-
+function renderAttendee(data) {
 
   const card =
     document.getElementById(
       "resultCard"
     );
 
-
   const result =
     document.getElementById(
       "result"
     );
 
-
-  card.classList.remove(
-    "hidden"
-  );
-
+  card.classList.remove("hidden");
 
   let html = "";
-
-
-  /*
-   * Basic details
-   */
 
   html +=
     '<div class="attendee">';
 
-
   html +=
-
     '<div class="attendee-name">' +
-
     escapeHtml(
       data.name || "-"
     ) +
-
     '</div>';
 
-
   html +=
-
     '<div class="registration-id">' +
-
     escapeHtml(
       data.registrationId || "-"
     ) +
-
     '</div>';
 
-
   html +=
-
     '<div class="info">' +
-
     '<b>Email:</b> ' +
-
     escapeHtml(
       data.email || "-"
     ) +
-
     '</div>';
 
-
   html +=
-
     '<div class="info">' +
-
     '<b>Mobile:</b> ' +
-
     escapeHtml(
-      data.mobile || "-"
+      data.mobile ||
+      data.contact ||
+      "-"
     ) +
-
     '</div>';
 
-
   html +=
-
     '<div class="info">' +
-
     '<b>Organization:</b> ' +
-
     escapeHtml(
-      data.organization || "-"
+      data.organization ||
+      "-"
     ) +
-
     '</div>';
-
-
-  html +=
-
-    '<div class="info">' +
-
-    '<b>Attendance Type:</b> ' +
-
-    escapeHtml(
-      data.attendanceType || "-"
-    ) +
-
-    '</div>';
-
 
   /*
-   * ============================================
    * CHECK-IN PENDING
-   * ============================================
    */
 
   if (
@@ -1289,68 +788,22 @@ function renderAttendee(
     "Checked In"
   ) {
 
-
     html +=
-
       '<div class="status status-pending">' +
-
-      '🟡 CHECK-IN PENDING' +
-
+      'CHECK-IN PENDING' +
       '</div>';
 
-
     html +=
-
-      '<label for="certificateName">' +
-
-      'Certificate Name' +
-
-      '</label>';
-
-
-    html +=
-
-      '<input ' +
-
-      'id="certificateName" ' +
-
-      'type="text" ' +
-
-      'value="' +
-
-      escapeAttribute(
-
-        data.certificateName ||
-
-        data.name ||
-
-        ""
-
-      ) +
-
-      '">';
-
-
-    html +=
-
       '<button ' +
-
       'id="checkInBtn" ' +
-
       'class="btn btn-success">' +
-
-      '✅ CHECK IN' +
-
+      'CHECK IN' +
       '</button>';
-
 
   }
 
-
   /*
-   * ============================================
    * CHECKED IN / GOODIE PENDING
-   * ============================================
    */
 
   else if (
@@ -1358,161 +811,74 @@ function renderAttendee(
     "Collected"
   ) {
 
-
     html +=
-
       '<div class="status status-checked">' +
-
-      '🟢 ALREADY CHECKED IN' +
-
+      'ALREADY CHECKED IN' +
       '<br><br>' +
-
       '<span class="small">' +
-
       'Check-in Time: ' +
-
       escapeHtml(
         data.checkInTime || "-"
       ) +
-
       '</span>' +
-
       '</div>';
 
-
     html +=
-
-      '<label>' +
-
-      'Certificate Name' +
-
-      '</label>';
-
-
-    html +=
-
-      '<input ' +
-
-      'type="text" ' +
-
-      'value="' +
-
-      escapeAttribute(
-
-        data.certificateName ||
-
-        data.name ||
-
-        ""
-
-      ) +
-
-      '" readonly>';
-
-
-    html +=
-
       '<div class="status status-pending">' +
-
-      '🎁 GOODIE PENDING' +
-
+      'GOODIE PENDING' +
       '</div>';
 
-
     html +=
-
       '<button ' +
-
       'id="goodieBtn" ' +
-
       'class="btn btn-warning">' +
-
-      '🎁 COLLECT GOODIE' +
-
+      'COLLECT GOODIE' +
       '</button>';
 
   }
 
-
   /*
-   * ============================================
    * FULLY COMPLETED
-   * ============================================
    */
 
   else {
 
-
     html +=
-
       '<div class="status status-completed">' +
-
-      '🔵 FULLY COMPLETED' +
-
+      'FULLY COMPLETED' +
       '</div>';
 
-
     html +=
-
       '<div class="message message-success">' +
-
       '<b>Check-in:</b><br>' +
-
       escapeHtml(
         data.checkInTime || "-"
       ) +
-
       '<br><br>' +
-
       '<b>Goodie Collected:</b><br>' +
-
       escapeHtml(
-        data.goodieTime || "-"
-      ) +
-
-      '</div>';
-
-
-    html +=
-
-      '<div class="info">' +
-
-      '<b>Certificate Name:</b><br>' +
-
-      escapeHtml(
-
-        data.certificateName ||
-
-        data.name ||
-
+        data.goodieTime ||
+        data.registrationKitTime ||
         "-"
-
       ) +
-
       '</div>';
 
-
     html +=
-
       '<div class="message message-warning">' +
-
-      '⚠️ NO ACTION REQUIRED' +
-
+      'NO ACTION REQUIRED' +
       '</div>';
 
   }
 
-
   html +=
     '</div>';
-
 
   result.innerHTML =
     html;
 
 
   /*
-   * Attach CHECK-IN button
+   * CHECK-IN BUTTON
    */
 
   const checkInBtn =
@@ -1520,10 +886,7 @@ function renderAttendee(
       "checkInBtn"
     );
 
-
-  if (
-    checkInBtn
-  ) {
+  if (checkInBtn) {
 
     checkInBtn.addEventListener(
       "click",
@@ -1540,7 +903,7 @@ function renderAttendee(
 
 
   /*
-   * Attach GOODIE button
+   * GOODIE BUTTON
    */
 
   const goodieBtn =
@@ -1548,10 +911,7 @@ function renderAttendee(
       "goodieBtn"
     );
 
-
-  if (
-    goodieBtn
-  ) {
+  if (goodieBtn) {
 
     goodieBtn.addEventListener(
       "click",
@@ -1569,294 +929,168 @@ function renderAttendee(
 }
 
 
-/*
- * ==============================================
- * LOADING
- * ==============================================
- */
+/* ==============================================
+   LOADING
+============================================== */
 
 function showLoading() {
 
-
   document
-    .getElementById(
-      "resultCard"
-    )
+    .getElementById("resultCard")
     .classList
-    .remove(
-      "hidden"
-    );
-
+    .remove("hidden");
 
   document
-    .getElementById(
-      "result"
-    )
+    .getElementById("result")
     .innerHTML =
-
     '<div class="message message-info">' +
-
-    '⏳ Processing...' +
-
+    'Processing...' +
     '</div>';
 
 }
 
 
-/*
- * ==============================================
- * SUCCESS
- * ==============================================
- */
+/* ==============================================
+   SUCCESS
+============================================== */
 
-function showSuccess(
-  message
-) {
-
+function showSuccess(message) {
 
   document
-    .getElementById(
-      "resultCard"
-    )
+    .getElementById("resultCard")
     .classList
-    .remove(
-      "hidden"
-    );
-
+    .remove("hidden");
 
   document
-    .getElementById(
-      "result"
-    )
+    .getElementById("result")
     .insertAdjacentHTML(
-
       "afterbegin",
 
       '<div class="message message-success">' +
-
-      escapeHtml(
-        message
-      ) +
-
+      escapeHtml(message) +
       '</div>'
-
     );
 
 }
 
 
-/*
- * ==============================================
- * WARNING
- * ==============================================
- */
+/* ==============================================
+   WARNING
+============================================== */
 
-function showWarning(
-  message
-) {
-
+function showWarning(message) {
 
   document
-    .getElementById(
-      "resultCard"
-    )
+    .getElementById("resultCard")
     .classList
-    .remove(
-      "hidden"
-    );
-
+    .remove("hidden");
 
   document
-    .getElementById(
-      "result"
-    )
+    .getElementById("result")
     .insertAdjacentHTML(
-
       "afterbegin",
 
       '<div class="message message-warning">' +
-
-      escapeHtml(
-        message
-      ) +
-
+      escapeHtml(message) +
       '</div>'
-
     );
 
 }
 
 
-/*
- * ==============================================
- * ERROR
- * ==============================================
- */
+/* ==============================================
+   ERROR
+============================================== */
 
-function showError(
-  message
-) {
-
+function showError(message) {
 
   document
-    .getElementById(
-      "resultCard"
-    )
+    .getElementById("resultCard")
     .classList
-    .remove(
-      "hidden"
-    );
-
+    .remove("hidden");
 
   document
-    .getElementById(
-      "result"
-    )
+    .getElementById("result")
     .innerHTML =
-
     '<div class="message message-error">' +
-
-    '❌ ' +
-
-    escapeHtml(
-      message
-    ) +
-
+    'ERROR: ' +
+    escapeHtml(message) +
     '</div>';
 
 }
 
 
-/*
- * ==============================================
- * CAMERA MESSAGE
- * ==============================================
- */
+/* ==============================================
+   CAMERA MESSAGE
+============================================== */
 
 function showCameraMessage(
   message,
   type
 ) {
 
-
   const box =
     document.getElementById(
       "cameraMessage"
     );
 
-
   let className =
     "message-info";
 
-
-  if (
-    type === "error"
-  ) {
+  if (type === "error") {
 
     className =
       "message-error";
 
   }
 
-
-  if (
-    type === "warning"
-  ) {
+  if (type === "warning") {
 
     className =
       "message-warning";
 
   }
 
-
   box.innerHTML =
-
     '<div class="message ' +
     className +
     '">' +
-
     message +
-
     '</div>';
 
 }
 
 
-/*
- * ==============================================
- * CLEAR CAMERA MESSAGE
- * ==============================================
- */
+/* ==============================================
+   CLEAR CAMERA MESSAGE
+============================================== */
 
 function clearCameraMessage() {
-
 
   document
     .getElementById(
       "cameraMessage"
     )
-    .innerHTML =
-    "";
+    .innerHTML = "";
 
 }
 
 
-/*
- * ==============================================
- * HTML ESCAPE
- * ==============================================
- */
+/* ==============================================
+   HTML ESCAPE
+============================================== */
 
-function escapeHtml(
-  value
-) {
+function escapeHtml(value) {
 
   return String(
     value == null
       ? ""
       : value
   )
-
-  .replace(
-    /&/g,
-    "&amp;"
-  )
-
-  .replace(
-    /</g,
-    "&lt;"
-  )
-
-  .replace(
-    />/g,
-    "&gt;"
-  )
-
-  .replace(
-    /"/g,
-    "&quot;"
-  )
-
-  .replace(
-    /'/g,
-    "&#039;"
-  );
-
-}
-
-
-/*
- * ==============================================
- * ATTRIBUTE ESCAPE
- * ==============================================
- */
-
-function escapeAttribute(
-  value
-) {
-
-  return escapeHtml(
-    value
-  );
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 }
