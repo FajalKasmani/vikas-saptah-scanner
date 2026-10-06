@@ -44,12 +44,12 @@
     </header>
 
 
-    <!-- SCANNER CARD -->
+    <!-- QR SCANNER -->
 
     <section class="card">
 
       <h2>
-        📷 Scan Registration QR
+        QR Scan Registration
       </h2>
 
       <p class="muted">
@@ -73,17 +73,19 @@
 
       <button
         id="startScannerBtn"
+        type="button"
         class="btn btn-dark"
       >
-        📷 START QR SCANNER
+        START QR SCANNER
       </button>
 
 
       <button
         id="stopScannerBtn"
+        type="button"
         class="btn btn-danger hidden"
       >
-        🛑 STOP SCANNER
+        STOP SCANNER
       </button>
 
 
@@ -100,8 +102,13 @@
     <section class="card">
 
       <h2>
-        🔎 Find Registration
+        Find Registration
       </h2>
+
+      <p class="muted">
+        Enter the Registration ID manually if QR scanning is not available.
+      </p>
+
 
       <input
         id="registrationId"
@@ -114,6 +121,7 @@
 
       <button
         id="findBtn"
+        type="button"
         class="btn btn-primary"
       >
         FIND REGISTRATION
@@ -136,16 +144,18 @@
   </div>
 
 
-  <!-- QR LIBRARY -->
+  <!-- QR SCANNER LIBRARY -->
 
   <script
     src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
   ></script>
 
 
-  <!-- OUR APP -->
+  <!-- APPLICATION JS -->
 
-  <script src="./app.js"></script>
+  <script
+    src="./app.js"
+  ></script>
 
 </body>
 
