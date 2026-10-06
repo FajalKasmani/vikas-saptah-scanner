@@ -447,12 +447,8 @@ function checkIn(id) {
   showLoading();
 
   apiCall(
-
     "checkin",
-
-    {
-      id: id
-    },
+    { id: id },
 
     function (response) {
 
@@ -461,55 +457,58 @@ function checkIn(id) {
         response
       );
 
-      if (!response || !response.success) {
-
-        if (
-          response &&
-          response.alreadyCheckedIn
-        ) {
-
-          const attendee =
-            response.data ||
-            response;
-
-          renderAttendee(attendee);
-
-          showWarning(
-            "Already Checked In at " +
-            (attendee.checkInTime || "-")
-          );
-
-          return;
-
-        }
+      if (!response) {
 
         showError(
-          response &&
-          response.message
-            ? response.message
-            : "Check-in failed."
+          "No response from server."
         );
 
         return;
-
       }
+
+
+      if (!response.success) {
+
+        showError(
+          response.message ||
+          "Check-in failed."
+        );
+
+        return;
+      }
+
 
       const attendee =
         response.data ||
         response;
 
+
+      // Immediately display fresh status
       renderAttendee(attendee);
 
-      showSuccess(
-        "Check-in completed successfully."
-      );
+
+      if (
+        response.alreadyCheckedIn
+      ) {
+
+        showWarning(
+          "Participant is already checked in."
+        );
+
+      }
+
+      else {
+
+        showSuccess(
+          "✓ CHECK-IN COMPLETED SUCCESSFULLY"
+        );
+
+      }
 
     }
-
   );
 
 }
-
 
 /* ==============================================
    GOODIE
@@ -520,65 +519,66 @@ function collectGoodie(id) {
   showLoading();
 
   apiCall(
-
     "goodie",
-
-    {
-      id: id
-    },
+    { id: id },
 
     function (response) {
 
       console.log(
-        "GOODIE RESPONSE:",
+        "KIT RESPONSE:",
         response
       );
 
-      if (!response || !response.success) {
 
-        if (
-          response &&
-          response.alreadyCollected
-        ) {
-
-          const attendee =
-            response.data ||
-            response;
-
-          renderAttendee(attendee);
-
-          showWarning(
-            "Goodie already collected at " +
-            (attendee.goodieTime || "-")
-          );
-
-          return;
-
-        }
+      if (!response) {
 
         showError(
-          response &&
-          response.message
-            ? response.message
-            : "Goodie collection failed."
+          "No response from server."
         );
 
         return;
-
       }
+
+
+      if (!response.success) {
+
+        showError(
+          response.message ||
+          "Kit collection failed."
+        );
+
+        return;
+      }
+
 
       const attendee =
         response.data ||
         response;
 
+
+      // Immediately show BOTH completed
       renderAttendee(attendee);
 
-      showSuccess(
-        "Goodie collected successfully."
-      );
+
+      if (
+        response.alreadyCollected
+      ) {
+
+        showWarning(
+          "Registration kit was already collected."
+        );
+
+      }
+
+      else {
+
+        showSuccess(
+          "✓ REGISTRATION KIT COLLECTED"
+        );
+
+      }
 
     }
-
   );
 
 }
@@ -731,12 +731,40 @@ function renderAttendee(data) {
       "result"
     );
 
-  card.classList.remove("hidden");
+
+  card.classList.remove(
+    "hidden"
+  );
+
+
+  // Normalize backend values
+  const checkInDone =
+    String(
+      data.checkInStatus || ""
+    )
+      .trim()
+      .toLowerCase() ===
+    "checked in";
+
+
+  const kitDone =
+    String(
+      data.kitStatus ||
+      data.goodieStatus ||
+      data.registrationKit ||
+      ""
+    )
+      .trim()
+      .toLowerCase() ===
+    "collected";
+
 
   let html = "";
 
+
   html +=
     '<div class="attendee">';
+
 
   html +=
     '<div class="attendee-name">' +
@@ -745,12 +773,14 @@ function renderAttendee(data) {
     ) +
     '</div>';
 
+
   html +=
     '<div class="registration-id">' +
     escapeHtml(
       data.registrationId || "-"
     ) +
     '</div>';
+
 
   html +=
     '<div class="info">' +
@@ -760,118 +790,175 @@ function renderAttendee(data) {
     ) +
     '</div>';
 
+
   html +=
     '<div class="info">' +
     '<b>Mobile:</b> ' +
     escapeHtml(
-      data.mobile ||
       data.contact ||
+      data.mobile ||
       "-"
     ) +
     '</div>';
+
 
   html +=
     '<div class="info">' +
     '<b>Organization:</b> ' +
     escapeHtml(
-      data.organization ||
-      "-"
+      data.organization || "-"
     ) +
     '</div>';
 
+
   /*
+   * STAGE 1
    * CHECK-IN PENDING
    */
 
-  if (
-    data.checkInStatus !==
-    "Checked In"
-  ) {
+  if (!checkInDone) {
 
     html +=
       '<div class="status status-pending">' +
-      'CHECK-IN PENDING' +
+      '⏳ CHECK-IN PENDING' +
       '</div>';
+
+
+    html +=
+      '<div class="status status-pending">' +
+      '🎁 REGISTRATION KIT PENDING' +
+      '</div>';
+
 
     html +=
       '<button ' +
       'id="checkInBtn" ' +
       'class="btn btn-success">' +
-      'CHECK IN' +
+      '✓ CHECK IN' +
       '</button>';
 
   }
 
+
   /*
-   * CHECKED IN / GOODIE PENDING
+   * STAGE 2
+   * CHECK-IN DONE
+   * KIT PENDING
    */
 
-  else if (
-    data.goodieStatus !==
-    "Collected"
-  ) {
+  else if (!kitDone) {
 
     html +=
       '<div class="status status-checked">' +
-      'ALREADY CHECKED IN' +
+
+      '✓ CHECK-IN DONE' +
+
       '<br><br>' +
+
       '<span class="small">' +
-      'Check-in Time: ' +
+
+      'Check-In Time:<br>' +
+
       escapeHtml(
         data.checkInTime || "-"
       ) +
+
       '</span>' +
+
       '</div>';
+
 
     html +=
       '<div class="status status-pending">' +
-      'GOODIE PENDING' +
+
+      '🎁 REGISTRATION KIT PENDING' +
+
       '</div>';
+
 
     html +=
       '<button ' +
       'id="goodieBtn" ' +
       'class="btn btn-warning">' +
-      'COLLECT GOODIE' +
+
+      '🎁 COLLECT KIT' +
+
       '</button>';
 
   }
 
+
   /*
-   * FULLY COMPLETED
+   * STAGE 3
+   * EVERYTHING DONE
    */
 
   else {
 
     html +=
-      '<div class="status status-completed">' +
-      'FULLY COMPLETED' +
-      '</div>';
+      '<div class="status status-checked">' +
 
-    html +=
-      '<div class="message message-success">' +
-      '<b>Check-in:</b><br>' +
+      '✓ CHECK-IN DONE' +
+
+      '<br><br>' +
+
+      '<span class="small">' +
+
+      'Check-In Time:<br>' +
+
       escapeHtml(
         data.checkInTime || "-"
       ) +
+
+      '</span>' +
+
+      '</div>';
+
+
+    html +=
+      '<div class="status status-checked">' +
+
+      '✓ REGISTRATION KIT COLLECTED' +
+
       '<br><br>' +
-      '<b>Goodie Collected:</b><br>' +
+
+      '<span class="small">' +
+
+      'Collection Time:<br>' +
+
       escapeHtml(
+        data.kitTime ||
         data.goodieTime ||
         data.registrationKitTime ||
         "-"
       ) +
+
+      '</span>' +
+
       '</div>';
 
+
     html +=
-      '<div class="message message-warning">' +
-      'NO ACTION REQUIRED' +
+      '<div class="status status-completed">' +
+
+      '✓ ALL DONE' +
+
+      '<br>' +
+
+      '<span class="small">' +
+
+      'No further action required' +
+
+      '</span>' +
+
       '</div>';
 
   }
 
+
   html +=
     '</div>';
+
 
   result.innerHTML =
     html;
@@ -885,6 +972,7 @@ function renderAttendee(data) {
     document.getElementById(
       "checkInBtn"
     );
+
 
   if (checkInBtn) {
 
@@ -900,6 +988,34 @@ function renderAttendee(data) {
     );
 
   }
+
+
+  /*
+   * KIT BUTTON
+   */
+
+  const goodieBtn =
+    document.getElementById(
+      "goodieBtn"
+    );
+
+
+  if (goodieBtn) {
+
+    goodieBtn.addEventListener(
+      "click",
+      function () {
+
+        collectGoodie(
+          data.registrationId
+        );
+
+      }
+    );
+
+  }
+
+}
 
 
   /*
