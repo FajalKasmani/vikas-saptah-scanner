@@ -3,47 +3,147 @@
  * QR SCANNER + GOOGLE SHEET BACKEND
  ************************************************/
 
+
+/* ==============================================
+   GOOGLE APPS SCRIPT API
+============================================== */
+
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxdUeD5zO2t8VWnY7npyq-EdJMXNbe-_0n4ruOlmyh5nn2Q7oNa9MCah-_EWDylGx2HjQ/exec";
 
+
+/* ==============================================
+   GLOBAL VARIABLES
+============================================== */
+
 let qrScanner = null;
+
 let scannerRunning = false;
 
 let lastScannedId = "";
+
 let lastScanTime = 0;
+
+let apiRequestRunning = false;
 
 
 /* ==============================================
    PAGE LOAD
 ============================================== */
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener(
+  "DOMContentLoaded",
+  function () {
 
-  console.log("VIKAS SAPTAH SCANNER LOADED");
+    console.log(
+      "VIKAS SAPTAH SCANNER LOADED"
+    );
 
-  document
-    .getElementById("startScannerBtn")
-    .addEventListener("click", startScanner);
 
-  document
-    .getElementById("stopScannerBtn")
-    .addEventListener("click", stopScanner);
+    const startButton =
+      document.getElementById(
+        "startScannerBtn"
+      );
 
-  document
-    .getElementById("findBtn")
-    .addEventListener("click", findAttendee);
+    const stopButton =
+      document.getElementById(
+        "stopScannerBtn"
+      );
 
-  document
-    .getElementById("registrationId")
-    .addEventListener("keydown", function (event) {
+    const findButton =
+      document.getElementById(
+        "findBtn"
+      );
 
-      if (event.key === "Enter") {
+    const registrationInput =
+      document.getElementById(
+        "registrationId"
+      );
+
+
+    if (!startButton) {
+
+      console.error(
+        "startScannerBtn not found."
+      );
+
+      return;
+
+    }
+
+
+    if (!stopButton) {
+
+      console.error(
+        "stopScannerBtn not found."
+      );
+
+      return;
+
+    }
+
+
+    if (!findButton) {
+
+      console.error(
+        "findBtn not found."
+      );
+
+      return;
+
+    }
+
+
+    startButton.addEventListener(
+      "click",
+      startScanner
+    );
+
+
+    stopButton.addEventListener(
+      "click",
+      stopScanner
+    );
+
+
+    findButton.addEventListener(
+      "click",
+      function () {
+
         findAttendee();
+
       }
+    );
 
-    });
 
-});
+    if (registrationInput) {
+
+      registrationInput.addEventListener(
+        "keydown",
+        function (event) {
+
+          if (
+            event.key === "Enter"
+          ) {
+
+            event.preventDefault();
+
+            findAttendee();
+
+          }
+
+        }
+      );
+
+    }
+
+
+    console.log(
+      "All buttons initialized."
+    );
+
+  }
+);
 
 
 /* ==============================================
@@ -53,38 +153,57 @@ document.addEventListener("DOMContentLoaded", function () {
 async function startScanner() {
 
   const status =
-    document.getElementById("scannerStatus");
+    document.getElementById(
+      "scannerStatus"
+    );
 
-  if (typeof Html5Qrcode === "undefined") {
+
+  if (
+    typeof Html5Qrcode ===
+    "undefined"
+  ) {
 
     showCameraMessage(
-      "QR scanner library could not load. Please refresh.",
+      "QR scanner library could not load. Please refresh the page.",
       "error"
     );
 
     return;
+
   }
 
+
   if (scannerRunning) {
+
     return;
+
   }
+
 
   status.innerText =
     "Requesting camera permission...";
+
+
+  clearCameraMessage();
+
 
   try {
 
     if (!qrScanner) {
 
       qrScanner =
-        new Html5Qrcode("reader");
+        new Html5Qrcode(
+          "reader"
+        );
 
     }
+
 
     await qrScanner.start(
 
       {
-        facingMode: "environment"
+        facingMode:
+          "environment"
       },
 
       {
@@ -99,43 +218,62 @@ async function startScanner() {
       },
 
       onScanSuccess,
+
       onScanFailure
 
     );
+
 
     scannerStarted();
 
   }
 
-  catch (error) {
 
-    console.log("Primary camera error:", error);
+  catch (primaryError) {
+
+    console.warn(
+      "Primary camera failed:",
+      primaryError
+    );
+
 
     try {
 
       const cameras =
         await Html5Qrcode.getCameras();
 
-      if (!cameras || cameras.length === 0) {
 
-        throw new Error("No camera found.");
+      if (
+        !cameras ||
+        cameras.length === 0
+      ) {
+
+        throw new Error(
+          "No camera found."
+        );
 
       }
 
+
       let selectedCamera =
-        cameras.find(function (camera) {
+        cameras.find(
+          function (camera) {
 
-          const label =
-            String(camera.label || "")
-              .toLowerCase();
+            const label =
+              String(
+                camera.label || ""
+              ).toLowerCase();
 
-          return (
-            label.includes("back") ||
-            label.includes("rear") ||
-            label.includes("environment")
-          );
 
-        });
+            return (
+              label.includes("back") ||
+              label.includes("rear") ||
+              label.includes("environment")
+            );
+
+          }
+        );
+
 
       if (!selectedCamera) {
 
@@ -143,6 +281,7 @@ async function startScanner() {
           cameras[0];
 
       }
+
 
       await qrScanner.start(
 
@@ -160,13 +299,16 @@ async function startScanner() {
         },
 
         onScanSuccess,
+
         onScanFailure
 
       );
 
+
       scannerStarted();
 
     }
+
 
     catch (finalError) {
 
@@ -175,12 +317,14 @@ async function startScanner() {
         finalError
       );
 
+
       status.innerText =
         "Camera could not start";
 
+
       showCameraMessage(
         "Camera could not start.<br><br>" +
-        "Please allow camera permission and use HTTPS.",
+        "Please allow camera permission and make sure the website is using HTTPS.",
         "error"
       );
 
@@ -199,20 +343,30 @@ function scannerStarted() {
 
   scannerRunning = true;
 
+
   document
-    .getElementById("startScannerBtn")
+    .getElementById(
+      "startScannerBtn"
+    )
     .classList
     .add("hidden");
 
+
   document
-    .getElementById("stopScannerBtn")
+    .getElementById(
+      "stopScannerBtn"
+    )
     .classList
     .remove("hidden");
 
+
   document
-    .getElementById("scannerStatus")
+    .getElementById(
+      "scannerStatus"
+    )
     .innerText =
-    "Camera active - point at QR";
+      "Camera active - point at QR";
+
 
   clearCameraMessage();
 
@@ -223,17 +377,23 @@ function scannerStarted() {
    QR SUCCESS
 ============================================== */
 
-async function onScanSuccess(decodedText) {
+async function onScanSuccess(
+  decodedText
+) {
 
   console.log(
     "QR SCANNED:",
     decodedText
   );
 
-  const now = Date.now();
+
+  const now =
+    Date.now();
+
 
   if (
-    decodedText === lastScannedId &&
+    decodedText ===
+      lastScannedId &&
     now - lastScanTime < 3000
   ) {
 
@@ -241,36 +401,60 @@ async function onScanSuccess(decodedText) {
 
   }
 
-  lastScannedId = decodedText;
-  lastScanTime = now;
+
+  lastScannedId =
+    decodedText;
+
+  lastScanTime =
+    now;
+
 
   let registrationId =
     String(decodedText)
       .trim()
       .toUpperCase();
 
+
   const match =
-    registrationId.match(/VS26-\d+/i);
+    registrationId.match(
+      /VS26-\d+/i
+    );
 
-  if (match) {
 
-    registrationId =
-      match[0].toUpperCase();
+  if (!match) {
+
+    showError(
+      "Invalid QR code. Registration QR must contain a valid VS26 ID."
+    );
+
+    return;
 
   }
 
+
+  registrationId =
+    match[0].toUpperCase();
+
+
   document
-    .getElementById("registrationId")
+    .getElementById(
+      "registrationId"
+    )
     .value =
-    registrationId;
+      registrationId;
+
 
   await stopScanner();
 
+
   document
-    .getElementById("scannerStatus")
+    .getElementById(
+      "scannerStatus"
+    )
     .innerText =
-    "QR scanned: " +
-    registrationId;
+      "QR scanned: " +
+      registrationId;
+
 
   findAttendee();
 
@@ -281,8 +465,11 @@ async function onScanSuccess(decodedText) {
    QR FAILURE
 ============================================== */
 
-function onScanFailure(error) {
-  // Ignore continuous scan failures.
+function onScanFailure() {
+
+  // Continuous QR failures are normal.
+  // Do nothing.
+
 }
 
 
@@ -292,13 +479,23 @@ function onScanFailure(error) {
 
 async function stopScanner() {
 
-  if (!qrScanner) {
+  if (
+    !qrScanner
+  ) {
+
+    scannerRunning =
+      false;
+
     return;
+
   }
+
 
   try {
 
-    if (scannerRunning) {
+    if (
+      scannerRunning
+    ) {
 
       await qrScanner.stop();
 
@@ -306,31 +503,43 @@ async function stopScanner() {
 
   }
 
+
   catch (error) {
 
-    console.log(
+    console.warn(
       "Scanner stop:",
       error
     );
 
   }
 
-  scannerRunning = false;
+
+  scannerRunning =
+    false;
+
 
   document
-    .getElementById("startScannerBtn")
+    .getElementById(
+      "startScannerBtn"
+    )
     .classList
     .remove("hidden");
 
+
   document
-    .getElementById("stopScannerBtn")
+    .getElementById(
+      "stopScannerBtn"
+    )
     .classList
     .add("hidden");
 
+
   document
-    .getElementById("scannerStatus")
+    .getElementById(
+      "scannerStatus"
+    )
     .innerText =
-    "Scanner stopped";
+      "Scanner stopped";
 
 }
 
@@ -346,10 +555,19 @@ function findAttendee() {
       "registrationId"
     );
 
+
+  if (!input) {
+
+    return;
+
+  }
+
+
   const id =
     input.value
       .trim()
       .toUpperCase();
+
 
   if (!id) {
 
@@ -361,7 +579,10 @@ function findAttendee() {
 
   }
 
-  if (!/^VS26-\d+$/i.test(id)) {
+
+  if (
+    !/^VS26-\d+$/i.test(id)
+  ) {
 
     showError(
       "Invalid Registration ID. Example: VS26-0001"
@@ -371,7 +592,18 @@ function findAttendee() {
 
   }
 
+
+  if (
+    apiRequestRunning
+  ) {
+
+    return;
+
+  }
+
+
   showLoading();
+
 
   apiCall(
 
@@ -388,6 +620,7 @@ function findAttendee() {
         response
       );
 
+
       if (!response) {
 
         showError(
@@ -398,7 +631,10 @@ function findAttendee() {
 
       }
 
-      if (!response.success) {
+
+      if (
+        !response.success
+      ) {
 
         showError(
           response.message ||
@@ -409,17 +645,15 @@ function findAttendee() {
 
       }
 
-      /*
-       * IMPORTANT:
-       * Backend may return attendee data
-       * directly OR inside response.data.
-       */
 
       const attendee =
         response.data ||
         response;
 
-      if (!attendee.registrationId) {
+
+      if (
+        !attendee.registrationId
+      ) {
 
         showError(
           "Registration found but attendee data is invalid."
@@ -429,7 +663,10 @@ function findAttendee() {
 
       }
 
-      renderAttendee(attendee);
+
+      renderAttendee(
+        attendee
+      );
 
     }
 
@@ -444,11 +681,23 @@ function findAttendee() {
 
 function checkIn(id) {
 
+  if (!id) {
+
+    return;
+
+  }
+
+
   showLoading();
 
+
   apiCall(
+
     "checkin",
-    { id: id },
+
+    {
+      id: id
+    },
 
     function (response) {
 
@@ -457,6 +706,7 @@ function checkIn(id) {
         response
       );
 
+
       if (!response) {
 
         showError(
@@ -464,10 +714,13 @@ function checkIn(id) {
         );
 
         return;
+
       }
 
 
-      if (!response.success) {
+      if (
+        !response.success
+      ) {
 
         showError(
           response.message ||
@@ -475,6 +728,7 @@ function checkIn(id) {
         );
 
         return;
+
       }
 
 
@@ -483,8 +737,14 @@ function checkIn(id) {
         response;
 
 
-      // Immediately display fresh status
-      renderAttendee(attendee);
+      /*
+       * IMPORTANT:
+       * Render fresh backend data.
+       */
+
+      renderAttendee(
+        attendee
+      );
 
 
       if (
@@ -500,27 +760,41 @@ function checkIn(id) {
       else {
 
         showSuccess(
-          "✓ CHECK-IN COMPLETED SUCCESSFULLY"
+          "CHECK-IN COMPLETED SUCCESSFULLY"
         );
 
       }
 
     }
+
   );
 
 }
 
+
 /* ==============================================
-   GOODIE
+   COLLECT KIT / GOODIE
 ============================================== */
 
 function collectGoodie(id) {
 
+  if (!id) {
+
+    return;
+
+  }
+
+
   showLoading();
 
+
   apiCall(
+
     "goodie",
-    { id: id },
+
+    {
+      id: id
+    },
 
     function (response) {
 
@@ -537,10 +811,13 @@ function collectGoodie(id) {
         );
 
         return;
+
       }
 
 
-      if (!response.success) {
+      if (
+        !response.success
+      ) {
 
         showError(
           response.message ||
@@ -548,6 +825,7 @@ function collectGoodie(id) {
         );
 
         return;
+
       }
 
 
@@ -556,8 +834,13 @@ function collectGoodie(id) {
         response;
 
 
-      // Immediately show BOTH completed
-      renderAttendee(attendee);
+      /*
+       * Render fresh backend data.
+       */
+
+      renderAttendee(
+        attendee
+      );
 
 
       if (
@@ -573,19 +856,20 @@ function collectGoodie(id) {
       else {
 
         showSuccess(
-          "✓ REGISTRATION KIT COLLECTED"
+          "REGISTRATION KIT COLLECTED"
         );
 
       }
 
     }
+
   );
 
 }
 
 
 /* ==============================================
-   API CALL
+   API CALL - JSONP
 ============================================== */
 
 function apiCall(
@@ -596,7 +880,9 @@ function apiCall(
 
   if (
     !API_URL ||
-    API_URL.includes("PASTE_YOUR")
+    API_URL.includes(
+      "PASTE_YOUR"
+    )
   ) {
 
     showError(
@@ -607,6 +893,11 @@ function apiCall(
 
   }
 
+
+  apiRequestRunning =
+    true;
+
+
   const callbackName =
     "vs26Callback_" +
     Date.now() +
@@ -615,10 +906,59 @@ function apiCall(
       Math.random() * 100000
     );
 
-  const script =
-    document.createElement("script");
 
-  window[callbackName] =
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  let finished =
+    false;
+
+
+  const cleanup =
+    function () {
+
+      if (
+        finished
+      ) {
+
+        return;
+
+      }
+
+
+      finished =
+        true;
+
+
+      apiRequestRunning =
+        false;
+
+
+      delete window[
+        callbackName
+      ];
+
+
+      if (
+        script.parentNode
+      ) {
+
+        script.parentNode
+          .removeChild(
+            script
+          );
+
+      }
+
+    };
+
+
+  window[
+    callbackName
+  ] =
     function (response) {
 
       console.log(
@@ -626,83 +966,97 @@ function apiCall(
         response
       );
 
+
       try {
 
-        callback(response);
+        callback(
+          response
+        );
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "Callback error:",
+          error
+        );
+
+        showError(
+          "Unable to process server response."
+        );
 
       }
 
       finally {
 
-        delete window[callbackName];
-
-        if (script.parentNode) {
-
-          script.parentNode.removeChild(
-            script
-          );
-
-        }
+        cleanup();
 
       }
 
     };
 
+
   const query =
     new URLSearchParams();
 
-  /*
-   * Apps Script API
-   */
 
   query.append(
     "api",
     action
   );
 
+
   query.append(
     "callback",
     callbackName
   );
 
-  Object.keys(params || {})
-    .forEach(function (key) {
+
+  Object.keys(
+    params || {}
+  ).forEach(
+    function (key) {
 
       query.append(
         key,
         params[key]
       );
 
-    });
+    }
+  );
+
 
   const finalUrl =
     API_URL +
     "?" +
     query.toString();
 
+
   console.log(
     "API REQUEST:",
     finalUrl
   );
 
-  script.src = finalUrl;
+
+  script.src =
+    finalUrl;
+
+
+  script.async =
+    true;
+
 
   script.onerror =
     function () {
 
       console.error(
-        "API request failed"
+        "Apps Script API request failed."
       );
 
-      delete window[callbackName];
 
-      if (script.parentNode) {
+      cleanup();
 
-        script.parentNode.removeChild(
-          script
-        );
-
-      }
 
       showError(
         "Unable to connect to Google Apps Script."
@@ -710,7 +1064,33 @@ function apiCall(
 
     };
 
-  document.body.appendChild(script);
+
+  document.body.appendChild(
+    script
+  );
+
+
+  /*
+   * Safety timeout.
+   * Prevents UI from getting stuck forever.
+   */
+
+  setTimeout(
+    function () {
+
+      if (!finished) {
+
+        cleanup();
+
+        showError(
+          "Google Apps Script response timed out."
+        );
+
+      }
+
+    },
+    15000
+  );
 
 }
 
@@ -719,12 +1099,15 @@ function apiCall(
    RENDER ATTENDEE
 ============================================== */
 
-function renderAttendee(data) {
+function renderAttendee(
+  data
+) {
 
   const card =
     document.getElementById(
       "resultCard"
     );
+
 
   const result =
     document.getElementById(
@@ -732,22 +1115,67 @@ function renderAttendee(data) {
     );
 
 
+  if (
+    !card ||
+    !result
+  ) {
+
+    return;
+
+  }
+
+
   card.classList.remove(
     "hidden"
   );
 
 
-  // Normalize backend values
-  const checkInDone =
+  /*
+   * Normalize CHECK-IN status.
+   *
+   * Supports:
+   * Checked In
+   * checked in
+   * DONE
+   * YES
+   * Completed
+   */
+
+  const rawCheckIn =
     String(
-      data.checkInStatus || ""
+      data.checkInStatus ||
+      ""
     )
       .trim()
-      .toLowerCase() ===
-    "checked in";
+      .toLowerCase();
 
 
-  const kitDone =
+  const checkInDone =
+    rawCheckIn ===
+      "checked in" ||
+
+    rawCheckIn ===
+      "done" ||
+
+    rawCheckIn ===
+      "yes" ||
+
+    rawCheckIn ===
+      "completed";
+
+
+  /*
+   * Normalize KIT status.
+   *
+   * Supports:
+   * Collected
+   * collected
+   * DONE
+   * YES
+   * Completed
+   */
+
+  const rawKit =
     String(
       data.kitStatus ||
       data.goodieStatus ||
@@ -755,103 +1183,162 @@ function renderAttendee(data) {
       ""
     )
       .trim()
-      .toLowerCase() ===
-    "collected";
+      .toLowerCase();
 
 
-  let html = "";
+  const kitDone =
+    rawKit ===
+      "collected" ||
+
+    rawKit ===
+      "done" ||
+
+    rawKit ===
+      "yes" ||
+
+    rawKit ===
+      "completed";
+
+
+  let html =
+    "";
 
 
   html +=
     '<div class="attendee">';
 
 
+  /* NAME */
+
   html +=
     '<div class="attendee-name">' +
+
     escapeHtml(
-      data.name || "-"
+      data.name ||
+      "-"
     ) +
+
     '</div>';
 
+
+  /* REGISTRATION ID */
 
   html +=
     '<div class="registration-id">' +
+
     escapeHtml(
-      data.registrationId || "-"
+      data.registrationId ||
+      "-"
     ) +
+
     '</div>';
 
 
+  /* EMAIL */
+
   html +=
     '<div class="info">' +
+
     '<b>Email:</b> ' +
+
     escapeHtml(
-      data.email || "-"
+      data.email ||
+      "-"
     ) +
+
     '</div>';
 
 
+  /* MOBILE */
+
   html +=
     '<div class="info">' +
+
     '<b>Mobile:</b> ' +
+
     escapeHtml(
       data.contact ||
       data.mobile ||
       "-"
     ) +
+
     '</div>';
 
 
+  /* ORGANIZATION */
+
   html +=
     '<div class="info">' +
+
     '<b>Organization:</b> ' +
+
     escapeHtml(
-      data.organization || "-"
+      data.organization ||
+      "-"
     ) +
+
     '</div>';
 
 
   /*
+   * =========================================
    * STAGE 1
    * CHECK-IN PENDING
+   * =========================================
    */
 
-  if (!checkInDone) {
+  if (
+    !checkInDone
+  ) {
 
     html +=
       '<div class="status status-pending">' +
-      '⏳ CHECK-IN PENDING' +
+
+      'CHECK-IN PENDING' +
+
       '</div>';
 
 
     html +=
       '<div class="status status-pending">' +
-      '🎁 REGISTRATION KIT PENDING' +
+
+      'REGISTRATION KIT PENDING' +
+
       '</div>';
 
 
     html +=
       '<button ' +
+
       'id="checkInBtn" ' +
+
+      'type="button" ' +
+
       'class="btn btn-success">' +
-      '✓ CHECK IN' +
+
+      'CHECK IN' +
+
       '</button>';
 
   }
 
 
   /*
+   * =========================================
    * STAGE 2
    * CHECK-IN DONE
    * KIT PENDING
+   * =========================================
    */
 
-  else if (!kitDone) {
+  else if (
+    !kitDone
+  ) {
 
     html +=
       '<div class="status status-checked">' +
 
-      '✓ CHECK-IN DONE' +
+      'CHECK-IN DONE' +
 
       '<br><br>' +
 
@@ -860,7 +1347,8 @@ function renderAttendee(data) {
       'Check-In Time:<br>' +
 
       escapeHtml(
-        data.checkInTime || "-"
+        data.checkInTime ||
+        "-"
       ) +
 
       '</span>' +
@@ -871,17 +1359,21 @@ function renderAttendee(data) {
     html +=
       '<div class="status status-pending">' +
 
-      '🎁 REGISTRATION KIT PENDING' +
+      'REGISTRATION KIT PENDING' +
 
       '</div>';
 
 
     html +=
       '<button ' +
+
       'id="goodieBtn" ' +
+
+      'type="button" ' +
+
       'class="btn btn-warning">' +
 
-      '🎁 COLLECT KIT' +
+      'COLLECT KIT' +
 
       '</button>';
 
@@ -889,8 +1381,10 @@ function renderAttendee(data) {
 
 
   /*
+   * =========================================
    * STAGE 3
-   * EVERYTHING DONE
+   * BOTH DONE
+   * =========================================
    */
 
   else {
@@ -898,7 +1392,7 @@ function renderAttendee(data) {
     html +=
       '<div class="status status-checked">' +
 
-      '✓ CHECK-IN DONE' +
+      'CHECK-IN DONE' +
 
       '<br><br>' +
 
@@ -907,7 +1401,8 @@ function renderAttendee(data) {
       'Check-In Time:<br>' +
 
       escapeHtml(
-        data.checkInTime || "-"
+        data.checkInTime ||
+        "-"
       ) +
 
       '</span>' +
@@ -918,7 +1413,7 @@ function renderAttendee(data) {
     html +=
       '<div class="status status-checked">' +
 
-      '✓ REGISTRATION KIT COLLECTED' +
+      'REGISTRATION KIT COLLECTED' +
 
       '<br><br>' +
 
@@ -941,7 +1436,7 @@ function renderAttendee(data) {
     html +=
       '<div class="status status-completed">' +
 
-      '✓ ALL DONE' +
+      'ALL DONE' +
 
       '<br>' +
 
@@ -965,7 +1460,9 @@ function renderAttendee(data) {
 
 
   /*
+   * =========================================
    * CHECK-IN BUTTON
+   * =========================================
    */
 
   const checkInBtn =
@@ -974,7 +1471,9 @@ function renderAttendee(data) {
     );
 
 
-  if (checkInBtn) {
+  if (
+    checkInBtn
+  ) {
 
     checkInBtn.addEventListener(
       "click",
@@ -991,7 +1490,9 @@ function renderAttendee(data) {
 
 
   /*
+   * =========================================
    * KIT BUTTON
+   * =========================================
    */
 
   const goodieBtn =
@@ -1000,34 +1501,9 @@ function renderAttendee(data) {
     );
 
 
-  if (goodieBtn) {
-
-    goodieBtn.addEventListener(
-      "click",
-      function () {
-
-        collectGoodie(
-          data.registrationId
-        );
-
-      }
-    );
-
-  }
-
-}
-
-
-  /*
-   * GOODIE BUTTON
-   */
-
-  const goodieBtn =
-    document.getElementById(
-      "goodieBtn"
-    );
-
-  if (goodieBtn) {
+  if (
+    goodieBtn
+  ) {
 
     goodieBtn.addEventListener(
       "click",
@@ -1051,16 +1527,27 @@ function renderAttendee(data) {
 
 function showLoading() {
 
-  document
-    .getElementById("resultCard")
-    .classList
-    .remove("hidden");
+  const card =
+    document.getElementById(
+      "resultCard"
+    );
 
-  document
-    .getElementById("result")
-    .innerHTML =
+  const result =
+    document.getElementById(
+      "result"
+    );
+
+
+  card.classList.remove(
+    "hidden"
+  );
+
+
+  result.innerHTML =
     '<div class="message message-info">' +
+
     'Processing...' +
+
     '</div>';
 
 }
@@ -1070,22 +1557,39 @@ function showLoading() {
    SUCCESS
 ============================================== */
 
-function showSuccess(message) {
+function showSuccess(
+  message
+) {
 
-  document
-    .getElementById("resultCard")
-    .classList
-    .remove("hidden");
-
-  document
-    .getElementById("result")
-    .insertAdjacentHTML(
-      "afterbegin",
-
-      '<div class="message message-success">' +
-      escapeHtml(message) +
-      '</div>'
+  const card =
+    document.getElementById(
+      "resultCard"
     );
+
+  const result =
+    document.getElementById(
+      "result"
+    );
+
+
+  card.classList.remove(
+    "hidden"
+  );
+
+
+  result.insertAdjacentHTML(
+
+    "afterbegin",
+
+    '<div class="message message-success">' +
+
+    escapeHtml(
+      message
+    ) +
+
+    '</div>'
+
+  );
 
 }
 
@@ -1094,22 +1598,39 @@ function showSuccess(message) {
    WARNING
 ============================================== */
 
-function showWarning(message) {
+function showWarning(
+  message
+) {
 
-  document
-    .getElementById("resultCard")
-    .classList
-    .remove("hidden");
-
-  document
-    .getElementById("result")
-    .insertAdjacentHTML(
-      "afterbegin",
-
-      '<div class="message message-warning">' +
-      escapeHtml(message) +
-      '</div>'
+  const card =
+    document.getElementById(
+      "resultCard"
     );
+
+  const result =
+    document.getElementById(
+      "result"
+    );
+
+
+  card.classList.remove(
+    "hidden"
+  );
+
+
+  result.insertAdjacentHTML(
+
+    "afterbegin",
+
+    '<div class="message message-warning">' +
+
+    escapeHtml(
+      message
+    ) +
+
+    '</div>'
+
+  );
 
 }
 
@@ -1118,19 +1639,36 @@ function showWarning(message) {
    ERROR
 ============================================== */
 
-function showError(message) {
+function showError(
+  message
+) {
 
-  document
-    .getElementById("resultCard")
-    .classList
-    .remove("hidden");
+  const card =
+    document.getElementById(
+      "resultCard"
+    );
 
-  document
-    .getElementById("result")
-    .innerHTML =
+  const result =
+    document.getElementById(
+      "result"
+    );
+
+
+  card.classList.remove(
+    "hidden"
+  );
+
+
+  result.innerHTML =
+
     '<div class="message message-error">' +
+
     'ERROR: ' +
-    escapeHtml(message) +
+
+    escapeHtml(
+      message
+    ) +
+
     '</div>';
 
 }
@@ -1150,28 +1688,48 @@ function showCameraMessage(
       "cameraMessage"
     );
 
+
+  if (!box) {
+
+    return;
+
+  }
+
+
   let className =
     "message-info";
 
-  if (type === "error") {
+
+  if (
+    type === "error"
+  ) {
 
     className =
       "message-error";
 
   }
 
-  if (type === "warning") {
+
+  if (
+    type === "warning"
+  ) {
 
     className =
       "message-warning";
 
   }
 
+
   box.innerHTML =
+
     '<div class="message ' +
+
     className +
+
     '">' +
+
     message +
+
     '</div>';
 
 }
@@ -1183,11 +1741,18 @@ function showCameraMessage(
 
 function clearCameraMessage() {
 
-  document
-    .getElementById(
+  const box =
+    document.getElementById(
       "cameraMessage"
-    )
-    .innerHTML = "";
+    );
+
+
+  if (box) {
+
+    box.innerHTML =
+      "";
+
+  }
 
 }
 
@@ -1196,17 +1761,41 @@ function clearCameraMessage() {
    HTML ESCAPE
 ============================================== */
 
-function escapeHtml(value) {
+function escapeHtml(
+  value
+) {
 
   return String(
+
     value == null
       ? ""
       : value
+
   )
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 
 }
