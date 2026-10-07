@@ -441,10 +441,7 @@ async function onScanSuccess(
       "registrationId"
     )
     .value =
-      registrationId.replace(
-/^VS26-/i,
-""
-);
+      registrationId.replace(/^VS26-/i,"");
 
 
   await stopScanner();
