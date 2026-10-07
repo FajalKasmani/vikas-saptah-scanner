@@ -563,35 +563,38 @@ function findAttendee() {
   }
 
 
-  const id =
-    input.value
-      .trim()
-      .toUpperCase();
+  const number =
+  input.value
+    .trim();
 
 
-  if (!id) {
+if (!number) {
 
-    showError(
-      "Please scan a QR code or enter Registration ID."
-    );
+  showError(
+    "Please scan a QR code or enter Registration ID."
+  );
 
-    return;
+  return;
 
-  }
+}
 
 
-  if (
-    !/^VS26-\d+$/i.test(id)
-  ) {
+if (
+  !/^\d+$/.test(number)
+) {
 
-    showError(
-      "Invalid Registration ID. Example: VS26-0001"
-    );
+  showError(
+    "Please enter a valid Registration number."
+  );
 
-    return;
+  return;
 
-  }
+}
 
+
+const id =
+  "VS26-" +
+  number;
 
   if (
     apiRequestRunning
