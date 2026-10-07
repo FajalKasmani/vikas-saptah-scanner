@@ -110,13 +110,18 @@
       </p>
 
 
-      <input
-        id="registrationId"
-        type="text"
-        placeholder="VS26-0001"
-        autocomplete="off"
-        autocapitalize="characters"
-      >
+      <div class="registration-input">
+  <span class="registration-prefix">VS26-</span>
+
+  <input
+    id="registrationId"
+    type="tel"
+    inputmode="numeric"
+    pattern="[0-9]*"
+    placeholder="0001"
+    autocomplete="off"
+  >
+</div>
 
 
       <button
